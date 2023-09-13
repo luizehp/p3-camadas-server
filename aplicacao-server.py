@@ -31,6 +31,8 @@ def main():
         #declaramos um objeto do tipo enlace com o nome "com". Essa é a camada inferior à aplicação. Observe que um parametro
         #para declarar esse objeto é o nome da porta.
         com1 = enlace(serialName)
+
+        imageW = "img/recebidaCopia.jpg"
     
         # Ativa comunicacao. Inicia os threads e a comunicação seiral 
         com1.enable()
@@ -40,35 +42,61 @@ def main():
         rxBuffer, nRx = com1.getData(1)
         com1.rx.clearBuffer()
         time.sleep(.05)
-        rxBuffer, nRx = com1.getData(1)
-        time.sleep(.05)
-        tamanho_esperado=int.from_bytes(rxBuffer)
-        print(f"tamanho esperado: {tamanho_esperado}")
-        rxBuffer, nRx = com1.getData(tamanho_esperado)
-            
-        for i in range(len(rxBuffer)):
-            print("recebeu {}" .format(rxBuffer[i]))    
-    
-        
-        print('\n')
-        print(rxBuffer)      
-        print('\n')
-        comandos=str(rxBuffer)[2:].lower().split("xff")
-        qnt_comandos=str(rxBuffer).lower().count("ff".lower())
-        print()
-        for i in comandos:
-            print(i[:-1])
-        print()
-        time.sleep(.05)
-
-
-        print('Comçando transmissão de dados:')
+        print("enviando 1 byte de sacrifício")
         com1.sendData(np.asarray(b'x00'))    #enviar byte de lixo
-        time.sleep(.5)
-        #com1.sendData(qnt_comandos.to_bytes(1)) 
-        com1.sendData(b"\xBB")         
-        txSize = com1.tx.getStatus()
-        print('quantidade de comandos = {}' .format(qnt_comandos))
+        print('enviou bytte sacrificio')
+        time.sleep(.05)
+        print("*******Início handshake*******")
+        rxBuffer, nRx = com1.getData(15)
+        print(rxBuffer)
+        time.sleep(.05)
+        print('Comçando transmissão de dados:')
+    
+        com1.sendData(np.asarray(rxBuffer))    #enviar byte de lixo
+        time.sleep(.05)
+        print("*******Final handshake*******")
+        indice=0
+        payloads=b""
+        while True:
+            com1.rx.clearBuffer()
+            int_list = [int(byte) for byte in rxBuffer]
+            tamanho=int_list[2]
+            print(tamanho, "____________________" ,int_list[1])
+            print("indices", int_list[0], int_list[1])
+            if int_list[0]==int_list[1]:
+                print("=============TERMINOU=============")
+                break
+
+
+            print("esperando pacote")
+            rxBuffer, nRx = com1.getData(tamanho)
+            recebe_int = [int(byte) for byte in rxBuffer]
+            payloads+=rxBuffer[12:-3]
+            print("AAAAAAAAAAAAAAAA",payloads)
+
+            
+            if indice!=int_list[0]:
+                print("PACOTE FORA DE ORDEM")
+            if (int_list[-1]!=255) or (int_list[-2]!=255) or (int_list[-1]!=255):
+                print("ERRO EOP")
+            if len(recebe_int)!=int_list[2]:
+                print("ERRO TAMANHO")
+
+
+
+            time.sleep(0.05)
+            print("#################")
+            print(rxBuffer[0:12]+rxBuffer[-3:])
+            print("#################")
+            com1.sendData(rxBuffer[0:12]+rxBuffer[-3:])
+            print("")
+            print(rxBuffer)
+            print("")
+            indice+=1
+        f = open(imageW,'wb')
+        f.write(payloads)
+        f.close
+        
 
 
         # Encerra comunicação
