@@ -57,31 +57,45 @@ def main():
         print("*******Final handshake*******")
         indice=0
         payloads=b""
+        erro=False
         while True:
             com1.rx.clearBuffer()
             int_list = [int(byte) for byte in rxBuffer]
             tamanho=int_list[2]
             print(tamanho, "____________________" ,int_list[1])
-            print("indices", int_list[0], int_list[1])
+            print(f"indices: {indice}", int_list[0], int_list[1])
             if int_list[0]==int_list[1]:
                 print("=============TERMINOU=============")
                 break
 
 
             print("esperando pacote")
+            raBuffer=rxBuffer
             rxBuffer, nRx = com1.getData(tamanho)
             recebe_int = [int(byte) for byte in rxBuffer]
             payloads+=rxBuffer[12:-3]
-            print("AAAAAAAAAAAAAAAA",payloads)
+            #print("AAAAAAAAAAAAAAAA",payloads)
+            print("AAAAAAAAAAAAAAAA",len(recebe_int),int_list[2])
 
             
             if indice!=int_list[0]:
-                print("PACOTE FORA DE ORDEM")
-            if (int_list[-1]!=255) or (int_list[-2]!=255) or (int_list[-1]!=255):
-                print("ERRO EOP")
-            if len(recebe_int)!=int_list[2]:
-                print("ERRO TAMANHO")
+                print("----PACOTE FORA DE ORDEM----")
+                erro=True
+                break
+            if int_list[-3:]!=[255,255,255]:
+                print("****ERRO EOP****")
+                erro=True
+                break
+            if len(recebe_int)!=recebe_int[3]:
+                print("====ERRO TAMANHO====")
+                erro=True
+                break
 
+            if erro:
+                rxBuffer=raBuffer
+                erro=False
+            else:
+                indice+=1
 
 
             time.sleep(0.05)
@@ -92,7 +106,6 @@ def main():
             print("")
             print(rxBuffer)
             print("")
-            indice+=1
         f = open(imageW,'wb')
         f.write(payloads)
         f.close
